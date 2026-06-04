@@ -206,15 +206,15 @@ const NODES = {
 const LANE_COLORS = {VENDORS:"var(--vendors)",CUSTOMERS:"var(--customers)",EMPLOYEES:"var(--employees)",BANKING:"var(--banking)"};
 
 const TIMELINE = {
-  total:"~7–14 business days · typical ~10 (DRAFT estimates — confirm)",
+  total:"Day 0 estimate → Day 7–12 closed · typical ~10 business days",
   steps:[
-    {day:"Day 1", title:"Estimate Sent", owner:"Sales Rep · <1 day", lane:"CUSTOMERS", refs:["quote"]},
+    {day:"Day 0", title:"Estimate Sent", owner:"Sales Rep · day 0", lane:"CUSTOMERS", refs:["quote"]},
     {gap:"Customer reviews & decides", time:"1–3 days", who:"waiting on customer"},
     {day:"Day 1–3", title:"Sales Order + Payment Link", owner:"Sales Rep · same day", lane:"CUSTOMERS", refs:["salesorder","paylink"]},
     {gap:"Customer pays the link", time:"0–2 days", who:"waiting on customer"},
     {day:"Day 3–4", title:"Payment Received → Order Processed + PO Issued", owner:"Ops + Bookkeeper · same day", lane:"CUSTOMERS", refs:["receivepay","processso","po"]},
     {gap:"Manufacturing lead time", time:"3–5 business days", who:"supplier"},
-    {day:"Day 6–9", title:"Inventory Received & Inspected", owner:"Warehouse · 1 day", lane:"VENDORS", refs:["recv","billinv"]},
+    {day:"Day 6–9", title:"Received, Inspected & Built", owner:"Warehouse · days 6–9", lane:"VENDORS", refs:["recv","billinv"]},
     {gap:"Schedule & deliver / pickup", time:"1–2 days", who:"internal"},
     {day:"Day 7–11", title:"Delivered / Picked Up", owner:"Operations · 1 day", lane:"CUSTOMERS", refs:["processso"]},
     {gap:"Invoice & apply payment", time:"same day", who:"admin"},
