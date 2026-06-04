@@ -39,10 +39,12 @@
   .node .more{font-size:10.5px;color:var(--muted);margin-top:2px}
   .arrow{display:flex;align-items:center;justify-content:center;color:var(--muted);
     font-size:22px;padding:0 4px;min-width:34px;user-select:none}
-  .arrow.down{width:100%;justify-content:flex-start;padding-left:60px;height:26px}
   .group{display:flex;align-items:center}
+  .handoff{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    border:1px dashed var(--customers);border-radius:11px;padding:13px 12px;min-width:120px;max-width:140px;
+    color:var(--customers);font-size:11px;font-weight:700;letter-spacing:.4px;background:rgba(46,160,67,.06)}
+  .handoff span{display:block;color:var(--muted);font-weight:500;margin-top:4px;font-size:10px;letter-spacing:0}
   .note{font-size:11.5px;color:var(--muted);padding:0 18px 18px;font-style:italic}
-  /* detail drawer */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;
     transition:.2s;z-index:40}
   .overlay.open{opacity:1;pointer-events:auto}
@@ -72,7 +74,7 @@
 <body>
 <header>
   <h1><span class="gold">Top Drawer Cabinetry</span> &nbsp;·&nbsp; Enterprise Workflow</h1>
-  <p>The way our system should run — quote to cash, PO to fulfillment. Click any step for the owner, how to do it, and what it triggers. Draft v1 — we tweak from here.</p>
+  <p>The way our system should run — quote to cash, PO to fulfillment. Click any step for the owner, how to do it, and what it triggers. Draft v2 — we tweak from here.</p>
   <div class="legend">
     <span><i class="dot" style="background:var(--vendors)"></i>Vendors / Purchasing</span>
     <span><i class="dot" style="background:var(--customers)"></i>Customers / Sales</span>
@@ -95,49 +97,25 @@
 </aside>
 
 <script>
-/* ============================================================
-   WORKFLOW DATA  — edit here to tweak. Each lane has a row of
-   nodes; "down" inserts a vertical connector for branch rows.
-   ============================================================ */
 const LANES = [
-  {
-    key:"VENDORS", color:"var(--vendors)", sub:"Purchasing & supplier payables",
-    rows:[
-      ["po","recv","billinv","paybills"],
-      ["enterbills","paybills2"]
-    ],
-    note:"Cabinets & stone are bought against confirmed customer orders — we don't carry deep inventory."
-  },
-  {
-    key:"CUSTOMERS", color:"var(--customers)", sub:"Quote to cash — the core revenue engine",
-    rows:[
-      ["quote","invoice","receivepay"],
-      ["salesorder","invoice2"],
-      ["salesreceipt","onlinepay"]
-    ],
-    note:"Every job starts as a Quote/Estimate. Nothing gets ordered or built without a signed estimate + deposit."
-  },
-  {
-    key:"EMPLOYEES", color:"var(--employees)", sub:"Time & payroll",
-    rows:[
-      ["entertime","payemp","payliab","taxforms"]
-    ],
-    note:"15 employees across sales, warehouse, and admin. Time feeds payroll; payroll feeds the books."
-  },
-  {
-    key:"BANKING", color:"var(--banking)", sub:"Deposits & reconciliation",
-    rows:[
-      ["deposits","reconcile","writechecks"]
-    ],
-    note:"All money in and out lands here. Reconcile monthly against the bank statement — no exceptions."
-  }
+  {key:"VENDORS", color:"var(--vendors)", sub:"Purchasing & supplier payables",
+    rows:[["po","recv","billinv","paybills"],["enterbills","paybills2"]],
+    note:"Cabinets & stone are bought against confirmed customer orders — we don't carry deep inventory."},
+  {key:"CUSTOMERS", color:"var(--customers)", sub:"Quote to cash — the core revenue engine",
+    rows:[["quote","salesorder","paylink","__handoff__","receivepay","processso","invoice"]],
+    note:"Sales reps own Quotes → Sales Orders → Payment Link, then they're out. Payment, fulfillment, and invoicing are handled by Ops & Admin."},
+  {key:"EMPLOYEES", color:"var(--employees)", sub:"Time & payroll",
+    rows:[["entertime","payemp","payliab","taxforms"]],
+    note:"15 employees across sales, warehouse, and admin. Time feeds payroll; payroll feeds the books."},
+  {key:"BANKING", color:"var(--banking)", sub:"Deposits & reconciliation",
+    rows:[["deposits","reconcile","writechecks"]],
+    note:"All money in and out lands here. Reconcile monthly against the bank statement — no exceptions."}
 ];
 
 const NODES = {
-  /* VENDORS */
   po:{step:"PURCHASING 1",title:"Purchase Orders",owner:"Operations Manager",
-    steps:["Generate a PO ONLY against a signed estimate + received deposit.","Pull exact cabinet & stone SKUs from the approved quote — apply scribe, toe-kick, and filler rules; exclude all appliances.","Send PO to the manufacturer; record the confirmed lead time (3–5 business days).","File the PO number against the customer job for traceability."],
-    trig:"Signed estimate + deposit received",next:"Receive Inventory"},
+    steps:["Generate a PO ONLY against a processed sales order (payment received).","Pull exact cabinet & stone SKUs from the approved quote — apply scribe, toe-kick, and filler rules; exclude all appliances.","Send PO to the manufacturer; record the confirmed lead time (3–5 business days).","File the PO number against the customer job for traceability."],
+    trig:"Sales order processed / payment received",next:"Receive Inventory"},
   recv:{step:"PURCHASING 2",title:"Receive Inventory",owner:"Warehouse Lead",
     steps:["When product arrives, match each line to the PO.","Inspect for damage/shortage; photograph and flag any discrepancy same-day.","Mark the PO as received in the system — partial receipts noted line-by-line.","Stage product by job, not by SKU, so fulfillment is clean."],
     trig:"Product arrives at 3120 W Thomas Rd",next:"Enter Bills Against Inventory"},
@@ -154,30 +132,25 @@ const NODES = {
     steps:["Same Pay Bills queue — both inventory and operating bills flow here.","Approve, pay, and record.","Watch terms to capture any early-pay advantages."],
     trig:"Bill due / approved for payment",next:"Banking → Reconcile"},
 
-  /* CUSTOMERS */
-  quote:{step:"SALES 1",title:"Quotes (Estimates)",owner:"Sales Rep",
-    steps:["Build the estimate from the design + measurements; include free 3D rendering where it wins the job.","Apply cabinet rules: scribe on exposed sides (except ranges/fridges), toe kick per 96\", correct filler codes (F342=WF3, F642=WF6, F396=TF3, F696=TF6).","Combine FR + Box as one line for Olive Green SKUs starting with 28.","Present pricing as line items + totals + grand total. Get signature and deposit."],
-    trig:"New lead / measurement complete",next:"Sales Order → Create Invoices"},
-  salesorder:{step:"SALES 1b",title:"Sales Orders",owner:"Sales Rep / Ops",
-    steps:["Convert the signed estimate into a Sales Order to lock the job into the pipeline.","Sales Order drives the Purchase Order to the manufacturer.","Track status: ordered → received → ready → delivered/installed."],
-    trig:"Estimate signed",next:"Purchase Orders + Create Invoices"},
-  invoice:{step:"SALES 2",title:"Create Invoices",owner:"Sales Rep / Admin",
-    steps:["Invoice from the estimate/sales order so nothing is missed.","Apply deposit already collected; show remaining balance.","Set terms; invoice due on delivery/pickup unless otherwise agreed.","Send to customer."],
-    trig:"Order confirmed / ready to bill",next:"Receive Payments"},
-  invoice2:{step:"SALES 2",title:"Create Invoices",owner:"Sales Rep / Admin",
-    steps:["Sales Orders flow into the same invoicing step.","Pull line items straight from the order — no re-keying.","Confirm totals before sending."],
-    trig:"Sales order ready to bill",next:"Receive Payments"},
-  salesreceipt:{step:"SALES · counter",title:"Create Sales Receipts",owner:"Admin",
-    steps:["Use for paid-in-full, point-of-sale transactions (no invoice/terms needed).","Captures payment + sale in one step.","Feeds directly to Receive Payments / deposit."],
-    trig:"Immediate full payment at counter",next:"Receive Payments"},
-  onlinepay:{step:"SALES · online",title:"Get Online Payments",owner:"Admin",
-    steps:["Send payment links for deposits and balances.","Customer pays by card/ACH online.","Payment auto-matches to the open invoice."],
-    trig:"Invoice sent with pay link",next:"Receive Payments"},
-  receivepay:{step:"SALES 3",title:"Receive Payments",owner:"Bookkeeper / Admin",
-    steps:["Apply every incoming payment to the correct open invoice — never leave unapplied credits.","Record method (card, ACH, check, cash).","Confirm the invoice balance updates to zero when paid in full.","Funds flow to Banking for deposit."],
-    trig:"Customer pays invoice",next:"Banking → Record Deposits"},
+  quote:{step:"SALES 1 · Sales Rep",title:"Quotes (Estimates)",owner:"Sales Rep",
+    steps:["Build the estimate from the design + measurements; include free 3D rendering where it wins the job.","Apply cabinet rules: scribe on exposed sides (except ranges/fridges), toe kick per 96\", correct filler codes (F342=WF3, F642=WF6, F396=TF3, F696=TF6).","Combine FR + Box as one line for Olive Green SKUs starting with 28.","Present pricing as line items + totals + grand total."],
+    trig:"New lead / measurement complete",next:"Sales Order"},
+  salesorder:{step:"SALES 2 · Sales Rep",title:"Create Sales Order",owner:"Sales Rep",
+    steps:["When the customer wants to move forward, convert the estimate into a Sales Order.","This locks the job into the pipeline — but nothing is ordered or built yet.","Immediately pair it with a payment link (next step).","Do NOT process the order until payment is received."],
+    trig:"Customer says “move forward”",next:"Send Payment Link (same time)"},
+  paylink:{step:"SALES 3 · Sales Rep",title:"Send Payment Link",owner:"Sales Rep",
+    steps:["At the same time as the Sales Order, send a QuickBooks Payments online payment link.","Customer pays the deposit/balance online by card or ACH.","This is the sales rep's LAST step — once the link is sent, the job hands off to Ops & Admin.","Confirm the link was delivered, then move on."],
+    trig:"Sales order created",next:"Handoff → Receive Payment"},
+  receivepay:{step:"SALES 4 · Ops/Admin",title:"Receive Payment",owner:"Bookkeeper / Admin",
+    steps:["Customer pays through the QuickBooks payment link.","Confirm the payment lands and record it against the job.","Hold the payment to apply against the invoice later (after items are received).","Greenlight the order for processing."],
+    trig:"Customer pays the link",next:"Process Sales Order"},
+  processso:{step:"SALES 5 · Operations",title:"Process Sales Order",owner:"Operations Manager",
+    steps:["With payment confirmed, process the Sales Order.","This kicks the Purchase Order to the manufacturer (see Vendors lane).","Track the order: ordered → received → ready → delivered/installed.","Coordinate delivery/pickup with the customer."],
+    trig:"Payment received",next:"Create Invoice (when items received)"},
+  invoice:{step:"SALES 6 · Ops/Admin",title:"Create Invoice & Apply Payment",owner:"Bookkeeper / Admin",
+    steps:["When the customer receives their items, create the invoice from the Sales Order.","Apply the payment already collected via the link to the invoice.","Confirm the balance nets to zero (or bill any remaining balance).","Funds flow to Banking for deposit."],
+    trig:"Customer receives items",next:"Banking → Record Deposits"},
 
-  /* EMPLOYEES */
   entertime:{step:"PAYROLL 1",title:"Enter Time",owner:"Each Employee / Manager",
     steps:["Staff log hours (and job, if billable) each day.","Managers approve weekly before the pay run.","Accurate time = accurate job costing and payroll."],
     trig:"Start of pay period",next:"Pay Employees"},
@@ -191,7 +164,6 @@ const NODES = {
     steps:["File required payroll tax forms; issue W-2s at year end.","Reconcile payroll totals to the books.","Hand off to CPA for filings."],
     trig:"Quarterly / year-end",next:"Banking → Reconcile"},
 
-  /* BANKING */
   deposits:{step:"BANKING 1",title:"Record Deposits",owner:"Bookkeeper",
     steps:["Group received payments into deposits that match what hits the bank.","Include merchant-service batches separately so they reconcile cleanly.","Record same-day where possible."],
     trig:"Payments received / merchant batch settles",next:"Reconcile"},
@@ -205,22 +177,25 @@ const NODES = {
 
 const LANE_COLORS = {VENDORS:"var(--vendors)",CUSTOMERS:"var(--customers)",EMPLOYEES:"var(--employees)",BANKING:"var(--banking)"};
 
-/* ---- render ---- */
 const wrap = document.getElementById("wrap");
 LANES.forEach(lane=>{
   const sec = document.createElement("div"); sec.className="lane";
   let rowsHtml="";
-  lane.rows.forEach((row,ri)=>{
+  lane.rows.forEach((row)=>{
     let r = '<div class="flow">';
     row.forEach((id,i)=>{
-      const n = NODES[id];
-      r += `<div class="group">
-        <div class="node" onclick="openDrawer('${id}','${lane.key}')" style="border-top:3px solid ${lane.color}">
+      r += `<div class="group">`;
+      if(id==="__handoff__"){
+        r += `<div class="handoff">SALES HANDS OFF<span>Ops &amp; Admin take over</span></div>`;
+      } else {
+        const n = NODES[id];
+        r += `<div class="node" onclick="openDrawer('${id}','${lane.key}')" style="border-top:3px solid ${lane.color}">
           <span class="step">${n.step}</span>
           <span class="title">${n.title}</span>
           <span class="owner">&#9679; ${n.owner}</span>
           <span class="more">Click for details ›</span>
         </div>`;
+      }
       if(i<row.length-1) r += `<div class="arrow">→</div>`;
       r += `</div>`;
     });
@@ -237,7 +212,6 @@ LANES.forEach(lane=>{
   wrap.appendChild(sec);
 });
 
-/* ---- drawer ---- */
 function openDrawer(id,laneKey){
   const n = NODES[id];
   document.getElementById("d-lane").textContent = laneKey;
