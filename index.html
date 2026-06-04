@@ -68,6 +68,31 @@
   .sec .tn b{color:var(--muted);min-width:64px;font-weight:600}
   .drawer-foot{margin-top:auto;padding:14px 22px;border-top:1px solid var(--line);
     font-size:11.5px;color:var(--muted)}
+  .tl-wrap{margin-bottom:30px;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+  .tl-head{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
+    font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--accent)}
+  .tl-head .bar{width:4px;height:18px;border-radius:2px;background:var(--accent)}
+  .tl-head small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:12px;margin-left:auto}
+  .tl-track{display:flex;align-items:flex-start;flex-wrap:wrap;padding:24px 16px 8px;gap:4px}
+  .tl-step{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:116px;max-width:150px;padding:6px 2px;cursor:pointer;border-radius:10px;transition:.15s}
+  .tl-step:hover{background:rgba(212,162,58,.06)}
+  .tl-step:hover .tl-title{color:var(--accent)}
+  .tl-step:hover .tl-dot{box-shadow:0 0 0 4px rgba(212,162,58,.22)}
+  .tl-more{font-size:9.5px;color:var(--muted);margin-top:5px;letter-spacing:.3px}
+  .tl-dot{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#0e1116;font-weight:700;
+    font-size:14px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;transition:.15s}
+  .tl-day{font-size:12px;font-weight:700;color:var(--accent)}
+  .tl-title{font-size:12.5px;font-weight:600;line-height:1.25;margin-top:3px}
+  .tl-owner{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .tl-seg{flex:1 1 64px;min-width:64px;display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:7px}
+  .tl-seg .line{height:0;border-top:2px solid var(--banking);width:100%;margin-bottom:8px}
+  .tl-seg.dashed .line{border-top:2px dashed var(--accent)}
+  .tl-seg .glabel{font-size:10.5px;color:var(--text);line-height:1.25}
+  .tl-seg .gtime{font-size:11px;font-weight:700;color:var(--accent);margin-top:2px}
+  .tl-seg .gwho{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+  .tl-legend{font-size:11px;color:var(--muted);padding:2px 18px 16px;display:flex;gap:20px;flex-wrap:wrap}
+  .tl-legend i{display:inline-block;width:22px;border-top:2px solid var(--banking);vertical-align:middle;margin-right:6px}
+  .tl-legend i.d{border-top:2px dashed var(--accent)}
   @media(max-width:640px){.node{max-width:none;flex:1 1 100%}.arrow{display:none}}
 </style>
 </head>
@@ -104,9 +129,9 @@ const LANES = [
   {key:"CUSTOMERS", color:"var(--customers)", sub:"Quote to cash — the core revenue engine",
     rows:[["quote","salesorder","paylink","__handoff__","receivepay","processso","invoice"]],
     note:"Sales reps own Quotes → Sales Orders → Payment Link, then they're out. Payment, fulfillment, and invoicing are handled by Ops & Admin."},
-  {key:"EMPLOYEES", color:"var(--employees)", sub:"Time & payroll",
-    rows:[["entertime","payemp","payliab","taxforms"]],
-    note:"15 employees across sales, warehouse, and admin. Time feeds payroll; payroll feeds the books."},
+  {key:"EMPLOYEES", color:"var(--employees)", sub:"Two pay paths — W-2 and 1099",
+    rows:[["entertime_w2","approvepayroll","processpayroll"],["calc1099","pay1099"]],
+    note:"W-2 employees clock in via kiosk daily → CEO/Bookkeeper approve & process payroll (forms + liabilities handled). 1099 contractors are calculated on labor, time & assemblies, then paid or scheduled by the Bookkeeper."},
   {key:"BANKING", color:"var(--banking)", sub:"Deposits & reconciliation",
     rows:[["deposits","reconcile","writechecks"]],
     note:"All money in and out lands here. Reconcile monthly against the bank statement — no exceptions."}
@@ -151,21 +176,24 @@ const NODES = {
     steps:["When the customer receives their items, create the invoice from the Sales Order.","Apply the payment already collected via the link to the invoice.","Confirm the balance nets to zero (or bill any remaining balance).","Funds flow to Banking for deposit."],
     trig:"Customer receives items",next:"Banking → Record Deposits"},
 
-  entertime:{step:"PAYROLL 1",title:"Enter Time",owner:"Each Employee / Manager",
-    steps:["Staff log hours (and job, if billable) each day.","Managers approve weekly before the pay run.","Accurate time = accurate job costing and payroll."],
-    trig:"Start of pay period",next:"Pay Employees"},
-  payemp:{step:"PAYROLL 2",title:"Pay Employees",owner:"CEO / Bookkeeper",
-    steps:["Run payroll from approved time.","Verify rates, overtime, and deductions.","Issue pay; payroll posts to the books."],
-    trig:"Time approved / payday",next:"Pay Liabilities"},
-  payliab:{step:"PAYROLL 3",title:"Pay Liabilities",owner:"Bookkeeper",
-    steps:["Pay withheld taxes and benefit liabilities on schedule.","Never let payroll-tax due dates slip.","Record payments against the liability accounts."],
-    trig:"Liability due dates",next:"View Tax Forms & W-2s"},
-  taxforms:{step:"PAYROLL 4",title:"View Tax Forms & W-2s",owner:"Bookkeeper / CPA",
-    steps:["File required payroll tax forms; issue W-2s at year end.","Reconcile payroll totals to the books.","Hand off to CPA for filings."],
-    trig:"Quarterly / year-end",next:"Banking → Reconcile"},
+  entertime_w2:{step:"W-2 PATH 1",title:"Enter Time (Kiosk)",owner:"W-2 Employees",
+    steps:["W-2 employees clock in/out through the kiosk every day.","Capture hours daily — no end-of-period guesswork.","Time feeds straight into the pay-period total for approval."],
+    trig:"Daily / each shift",next:"Approve Payroll (end of period)"},
+  approvepayroll:{step:"W-2 PATH 2",title:"Approve Payroll",owner:"CEO / Bookkeeper",
+    steps:["At the end of the pay period, review and approve the payroll.","Verify hours, rates, overtime, and deductions.","Greenlight for processing."],
+    trig:"End of pay period",next:"Process Payroll"},
+  processpayroll:{step:"W-2 PATH 3",title:"Process Payroll",owner:"CEO / Bookkeeper",
+    steps:["Process the approved payroll and issue pay.","Make sure tax forms and payroll liabilities are handled on schedule.","Confirm everything posts to the books.","Funds flow to Banking."],
+    trig:"Payroll approved",next:"Banking → Reconcile"},
+  calc1099:{step:"1099 PATH 1",title:"Calculate 1099 Pay",owner:"Bookkeeper",
+    steps:["For 1099 contractors, calculate what's owed based on labor, time, and assemblies — whatever applies to them.","Confirm the amount against their completed work.","Prepare for payment."],
+    trig:"End of period / work completed",next:"Pay / Schedule Payment"},
+  pay1099:{step:"1099 PATH 2",title:"Pay / Schedule Payment",owner:"Bookkeeper",
+    steps:["Pay the contractor or schedule the payment for them.","Record the payment to the correct account.","Funds flow to Banking."],
+    trig:"1099 amount calculated",next:"Banking → Reconcile"},
 
   deposits:{step:"BANKING 1",title:"Record Deposits",owner:"Bookkeeper",
-    steps:["Group received payments into deposits that match what hits the bank.","Include merchant-service batches separately so they reconcile cleanly.","Record same-day where possible."],
+    steps:["Record deposits through QuickBooks Enterprise's Record / Match Deposits feature — not manually.","Group received payments into deposits that match exactly what hits the bank.","Include merchant-service batches separately so they reconcile cleanly.","Record same-day where possible."],
     trig:"Payments received / merchant batch settles",next:"Reconcile"},
   reconcile:{step:"BANKING 2",title:"Reconcile",owner:"Bookkeeper / CEO",
     steps:["Reconcile every bank & card account monthly against the statement.","Match every transaction — chase anything unexplained.","Lock the period once reconciled.","Review reports for cash position and margin."],
@@ -177,7 +205,69 @@ const NODES = {
 
 const LANE_COLORS = {VENDORS:"var(--vendors)",CUSTOMERS:"var(--customers)",EMPLOYEES:"var(--employees)",BANKING:"var(--banking)"};
 
+const TIMELINE = {
+  total:"~7–14 business days · typical ~10 (DRAFT estimates — confirm)",
+  steps:[
+    {day:"Day 1", title:"Estimate Sent", owner:"Sales Rep · <1 day", lane:"CUSTOMERS", refs:["quote"]},
+    {gap:"Customer reviews & decides", time:"1–3 days", who:"waiting on customer"},
+    {day:"Day 1–3", title:"Sales Order + Payment Link", owner:"Sales Rep · same day", lane:"CUSTOMERS", refs:["salesorder","paylink"]},
+    {gap:"Customer pays the link", time:"0–2 days", who:"waiting on customer"},
+    {day:"Day 3–4", title:"Payment Received → Order Processed + PO Issued", owner:"Ops + Bookkeeper · same day", lane:"CUSTOMERS", refs:["receivepay","processso","po"]},
+    {gap:"Manufacturing lead time", time:"3–5 business days", who:"supplier"},
+    {day:"Day 6–9", title:"Inventory Received & Inspected", owner:"Warehouse · 1 day", lane:"VENDORS", refs:["recv","billinv"]},
+    {gap:"Schedule & deliver / pickup", time:"1–2 days", who:"internal"},
+    {day:"Day 7–11", title:"Delivered / Picked Up", owner:"Operations · 1 day", lane:"CUSTOMERS", refs:["processso"]},
+    {gap:"Invoice & apply payment", time:"same day", who:"admin"},
+    {day:"Day 7–12", title:"Invoiced & Closed", owner:"Admin · <1 day", lane:"CUSTOMERS", refs:["invoice","deposits"]}
+  ]
+};
+const TLM = TIMELINE.steps.filter(s=>s.title);
+
 const wrap = document.getElementById("wrap");
+(function(){
+  let mNum=0;
+  const inner = TIMELINE.steps.map(x=>{
+    if(x.title){
+      mNum++;
+      return `<div class="tl-step" onclick="openTimeline(${mNum-1})"><div class="tl-dot">${mNum}</div><div class="tl-day">${x.day}</div>
+        <div class="tl-title">${x.title}</div><div class="tl-owner">${x.owner}</div><div class="tl-more">Click for details ›</div></div>`;
+    }
+    const dashed = (x.who==="waiting on customer") ? " dashed" : "";
+    return `<div class="tl-seg${dashed}"><div class="line"></div><div class="glabel">${x.gap}</div>
+      <div class="gtime">${x.time}</div><div class="gwho">${x.who}</div></div>`;
+  }).join("");
+  const div = document.createElement("div");
+  div.className = "tl-wrap";
+  div.innerHTML = `
+    <div class="tl-head"><span class="bar"></span> End-to-End Timeline <small>${TIMELINE.total}</small></div>
+    <div class="tl-track">${inner}</div>
+    <div class="tl-legend">
+      <span><i></i>Internal / supplier time</span>
+      <span><i class="d"></i>Waiting on the customer</span>
+    </div>`;
+  wrap.appendChild(div);
+})();
+
+function openTimeline(idx){
+  const x = TLM[idx];
+  document.getElementById("d-lane").textContent = "STAGE " + (idx+1) + " · " + x.lane;
+  document.getElementById("d-lane").style.color = LANE_COLORS[x.lane];
+  document.getElementById("d-title").textContent = x.title;
+  let body = `<div class="sec"><h3>Stage timing</h3><span class="owner-pill">${x.day} · ${x.owner}</span></div>`;
+  x.refs.forEach(id=>{
+    const n = NODES[id];
+    const steps = n.steps.map(s=>`<li>${s}</li>`).join("");
+    body += `<div class="sec"><h3>${n.title}</h3>
+      <span class="owner-pill">&#9679; ${n.owner}</span>
+      <ol style="margin-top:10px">${steps}</ol>
+      <div class="tn"><b>Trigger</b><span>${n.trig}</span></div>
+      <div class="tn"><b>Next</b><span>${n.next}</span></div></div>`;
+  });
+  document.getElementById("d-body").innerHTML = body;
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("drawer").classList.add("open");
+}
+
 LANES.forEach(lane=>{
   const sec = document.createElement("div"); sec.className="lane";
   let rowsHtml="";
