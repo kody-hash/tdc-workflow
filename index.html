@@ -18,6 +18,7 @@
     background:linear-gradient(180deg,#0e1116 70%,rgba(14,17,22,.85));backdrop-filter:blur(6px);z-index:20}
   header h1{margin:0;font-size:20px;letter-spacing:.3px}
   header h1 .gold{color:var(--accent)}
+  header h1 .brandred{color:#ef4444}
   header p{margin:6px 0 0;color:var(--muted);font-size:13px;max-width:780px}
   .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:12px}
   .legend span{display:flex;align-items:center;gap:6px;color:var(--muted)}
@@ -98,8 +99,8 @@
 </head>
 <body>
 <header>
-  <h1><span class="gold">Top Drawer Cabinetry</span> &nbsp;·&nbsp; Enterprise Workflow</h1>
-  <p>The way our system should run — quote to cash, PO to fulfillment. Click any step for the owner, how to do it, and what it triggers. Draft v2 — we tweak from here.</p>
+  <h1><span class="brandred">Top Drawer Cabinetry</span> &nbsp;·&nbsp; Enterprise Workflow</h1>
+  <p>This is the way we operate — quote to cash, PO to fulfillment. Click any step for the owner, how to do it, and what it triggers. Most current draft as of June 5, 2026.</p>
   <div class="legend">
     <span><i class="dot" style="background:var(--vendors)"></i>Vendors / Purchasing</span>
     <span><i class="dot" style="background:var(--customers)"></i>Customers / Sales</span>
@@ -125,9 +126,9 @@
 const LANES = [
   {key:"VENDORS", color:"var(--vendors)", sub:"Purchasing & supplier payables",
     rows:[["po","recv","billinv","paybills"],["enterbills","paybills2"]],
-    note:"Cabinets & stone are bought against confirmed customer orders — we don't carry deep inventory."},
+    note:"We stock common items and pull from the racks; POs only fire for out-of-stock items on confirmed, paid orders."},
   {key:"CUSTOMERS", color:"var(--customers)", sub:"Quote to cash — the core revenue engine",
-    rows:[["quote","salesorder","paylink","__handoff__","receivepay","processso","invoice"]],
+    rows:[["quote","salesorder","paylink","__handoff__","receivepay","processso","deliver","invoice"]],
     note:"Sales reps own Quotes → Sales Orders → Payment Link, then they're out. Payment, fulfillment, and invoicing are handled by Ops & Admin."},
   {key:"EMPLOYEES", color:"var(--employees)", sub:"Two pay paths — W-2 and 1099",
     rows:[["entertime_w2","approvepayroll","processpayroll"],["calc1099","pay1099"]],
@@ -138,15 +139,18 @@ const LANES = [
 ];
 
 const NODES = {
-  po:{step:"PURCHASING 1",title:"Purchase Orders",owner:"Operations Manager",
-    steps:["Generate a PO ONLY against a processed sales order (payment received).","Pull exact cabinet & stone SKUs from the approved quote — apply scribe, toe-kick, and filler rules; exclude all appliances.","Send PO to the manufacturer; record the confirmed lead time (3–5 business days).","File the PO number against the customer job for traceability."],
-    trig:"Sales order processed / payment received",next:"Receive Inventory"},
+  po:{step:"PURCHASING 1",title:"Purchase Orders",owner:"Office Manager",
+    steps:["Create a Purchase Order for the items not in stock.","Send the PO to the vendor.","The vendor sends back a bill — often before the items arrive — enter it as an open Bill in QuickBooks.","Record the lead time (3–5 business days) and file the PO against the customer job."],
+    trig:"Out-of-stock items on a processed SO",next:"Receive Inventory"},
   recv:{step:"PURCHASING 2",title:"Receive Inventory",owner:"Warehouse Lead",
-    steps:["When product arrives, match each line to the PO.","Inspect for damage/shortage; photograph and flag any discrepancy same-day.","Mark the PO as received in the system — partial receipts noted line-by-line.","Stage product by job, not by SKU, so fulfillment is clean."],
-    trig:"Product arrives at 3120 W Thomas Rd",next:"Enter Bills Against Inventory"},
+    steps:["Go to the vendor and pick up the product — typically within 24–48 hours of ordering (fast).","Verify everything received against the PO; double-check quantities and condition.","Hand the verified receipt back to the Office Manager who issued the PO, then on to the Bookkeeper.","Stage product by job, not by SKU, so fulfillment is clean."],
+    trig:"Product ready at the vendor",next:"Enter Bills Against Inventory"},
   billinv:{step:"PURCHASING 3",title:"Enter Bills Against Inventory",owner:"Bookkeeper",
     steps:["Enter the supplier bill linked to the received PO.","Confirm bill quantities/prices match the PO — escalate any variance before posting.","Set payment terms and due date.","Bill now sits in A/P awaiting payment."],
     trig:"Inventory received & verified",next:"Pay Bills"},
+  build:{step:"FULFILL · finish",title:"Build / Flat-Pack & Mark Ready",owner:"Warehouse / Assembly",
+    steps:["Fill anything that was missing once the vendor items arrive.","Flat-pack orders: pull and kit everything together (fast).","Built orders: finish assembly (slower).","This is the biggest timeline driver — flat-pack vs. assembled is the 1–5 day swing in this stage.","Mark the order READY once it's complete."],
+    trig:"All items received",next:"Notify customer → Delivery / Pickup"},
   enterbills:{step:"PURCHASING · A/P",title:"Enter Bills",owner:"Bookkeeper",
     steps:["Use for non-inventory bills: rent, utilities, freight, marketing, software.","Code to the correct expense account.","Set due date to manage cash flow.","Route to Pay Bills when due."],
     trig:"Operating expense invoice received",next:"Pay Bills"},
@@ -158,23 +162,26 @@ const NODES = {
     trig:"Bill due / approved for payment",next:"Banking → Reconcile"},
 
   quote:{step:"SALES 1 · Sales Rep",title:"Quotes (Estimates)",owner:"Sales Rep",
-    steps:["Build the estimate from the design + measurements; include free 3D rendering where it wins the job.","Apply cabinet rules: scribe on exposed sides (except ranges/fridges), toe kick per 96\", correct filler codes (F342=WF3, F642=WF6, F396=TF3, F696=TF6).","Combine FR + Box as one line for Olive Green SKUs starting with 28.","Present pricing as line items + totals + grand total."],
+    steps:["Build the estimate from the design & measurements; always include a free 3D rendering (unless the customer provides their own list).","A complete quote = the quote, an overhead, an elevation, and 3D renderings — built using our templates and formats — and sent via email.","Get manager approval before sending the quote to the customer."],
     trig:"New lead / measurement complete",next:"Sales Order"},
   salesorder:{step:"SALES 2 · Sales Rep",title:"Create Sales Order",owner:"Sales Rep",
-    steps:["When the customer wants to move forward, convert the estimate into a Sales Order.","This locks the job into the pipeline — but nothing is ordered or built yet.","Immediately pair it with a payment link (next step).","Do NOT process the order until payment is received."],
+    steps:["When the customer wants to move forward, convert the estimate into a Sales Order.","Locks the job into the pipeline — nothing is ordered or built until a full payment matching the SO total is confirmed.","Email the Sales Order to the customer along with a payment link for the SO total.","Customer changes go back through the sales rep, who adjusts the SO — ideally before the job is built or pulled, to avoid restocking fees."],
     trig:"Customer says “move forward”",next:"Send Payment Link (same time)"},
   paylink:{step:"SALES 3 · Sales Rep",title:"Send Payment Link",owner:"Sales Rep",
-    steps:["At the same time as the Sales Order, send a QuickBooks Payments online payment link.","Customer pays the deposit/balance online by card or ACH.","This is the sales rep's LAST step — once the link is sent, the job hands off to Ops & Admin.","Confirm the link was delivered, then move on."],
+    steps:["At the same time as the Sales Order, send a QuickBooks Payments online payment link.","Customer pays the SO total online by card or ACH.","This is the sales rep's LAST step — once the link is sent, the job hands off to Ops & Admin.","Confirm the link was delivered, then move on."],
     trig:"Sales order created",next:"Handoff → Receive Payment"},
   receivepay:{step:"SALES 4 · Ops/Admin",title:"Receive Payment",owner:"Bookkeeper / Admin",
-    steps:["Customer pays through the QuickBooks payment link.","Confirm the payment lands and record it against the job.","Hold the payment to apply against the invoice later (after items are received).","Greenlight the order for processing."],
+    steps:["Customer pays through the QuickBooks payment link.","Confirm the payment lands and matches an SO — do NOT link it to the Sales Order yet (once linked, the SO can't be edited).","Park it in a Customer Deposits account (Other Current Liability / unearned revenue), not income — it isn't earned until items are delivered.","Hold the payment to apply against the invoice later, once items are received/delivered.","This is the green light to process the order."],
     trig:"Customer pays the link",next:"Process Sales Order"},
-  processso:{step:"SALES 5 · Operations",title:"Process Sales Order",owner:"Operations Manager",
-    steps:["With payment confirmed, process the Sales Order.","This kicks the Purchase Order to the manufacturer (see Vendors lane).","Track the order: ordered → received → ready → delivered/installed.","Coordinate delivery/pickup with the customer."],
-    trig:"Payment received",next:"Create Invoice (when items received)"},
-  invoice:{step:"SALES 6 · Ops/Admin",title:"Create Invoice & Apply Payment",owner:"Bookkeeper / Admin",
-    steps:["When the customer receives their items, create the invoice from the Sales Order.","Apply the payment already collected via the link to the invoice.","Confirm the balance nets to zero (or bill any remaining balance).","Funds flow to Banking for deposit."],
-    trig:"Customer receives items",next:"Banking → Record Deposits"},
+  processso:{step:"SALES 5 · Office Mgr",title:"Process Sales Order",owner:"Office Manager",
+    steps:["The Office Manager processes the Sales Order — checks what's in stock vs. what needs to be ordered.","Pull in-stock items from our racks and stage them for the job.","Flag any out-of-stock items to be purchased (see Purchase Orders)."],
+    trig:"Payment confirmed & matched to SO",next:"Purchase Orders / Receive Inventory"},
+  deliver:{step:"SALES · Delivery/Pickup",title:"Delivered / Picked Up",owner:"Operations / Front Desk",
+    steps:["Once the order is marked READY, the customer is automatically texted:","Delivery → a link to schedule their delivery date.","Pickup → a text that the order is ready, with the invoice number to give at the front desk.","Pickup is faster than delivery (delivery runs a few days out) — a flat-pack pickup is the fastest path, an assembled delivery the slowest.","Confirm the full order matches the SO, then deliver or release at pickup.","Hand off to Admin to invoice and apply the held deposit."],
+    trig:"Order marked ready",next:"Create Invoice & Apply Payment"},
+  invoice:{step:"SALES 6 · Bookkeeper",title:"Create Invoice & Apply Payment",owner:"Bookkeeper",
+    steps:["Once the order is delivered or picked up, the delivery/pickup slip goes to the Bookkeeper.","Create the final invoice from the Sales Order — this is what actually gets invoiced.","Apply the held payment (the Customer Deposits liability) to the invoice — clearing the liability and recognizing the income.","Balance nets to zero; funds flow to Banking."],
+    trig:"Order delivered / picked up (slip received)",next:"Banking → Record Deposits"},
 
   entertime_w2:{step:"W-2 PATH 1",title:"Enter Time (Kiosk)",owner:"W-2 Employees",
     steps:["W-2 employees clock in/out through the kiosk every day.","Capture hours daily — no end-of-period guesswork.","Time feeds straight into the pay-period total for approval."],
@@ -206,19 +213,19 @@ const NODES = {
 const LANE_COLORS = {VENDORS:"var(--vendors)",CUSTOMERS:"var(--customers)",EMPLOYEES:"var(--employees)",BANKING:"var(--banking)"};
 
 const TIMELINE = {
-  total:"Day 0 estimate → Day 7–12 closed · typical ~10 business days",
+  total:"Day 0 estimate · clock starts Day 1 when the customer commits → ~Day 4–12 closed",
   steps:[
     {day:"Day 0", title:"Estimate Sent", owner:"Sales Rep · day 0", lane:"CUSTOMERS", refs:["quote"]},
     {gap:"Customer reviews & decides", time:"1–3 days", who:"waiting on customer"},
-    {day:"Day 1–3", title:"Sales Order + Payment Link", owner:"Sales Rep · same day", lane:"CUSTOMERS", refs:["salesorder","paylink"]},
+    {day:"Day 1", title:"Sales Order + Payment Link", owner:"Sales Rep · day 1", lane:"CUSTOMERS", refs:["salesorder","paylink"]},
     {gap:"Customer pays the link", time:"0–2 days", who:"waiting on customer"},
-    {day:"Day 3–4", title:"Payment Received → Order Processed + PO Issued", owner:"Ops + Bookkeeper · same day", lane:"CUSTOMERS", refs:["receivepay","processso","po"]},
-    {gap:"Manufacturing lead time", time:"3–5 business days", who:"supplier"},
-    {day:"Day 6–9", title:"Received, Inspected & Built", owner:"Warehouse · days 6–9", lane:"VENDORS", refs:["recv","billinv"]},
-    {gap:"Schedule & deliver / pickup", time:"1–2 days", who:"internal"},
-    {day:"Day 7–11", title:"Delivered / Picked Up", owner:"Operations · 1 day", lane:"CUSTOMERS", refs:["processso"]},
+    {day:"Day 1–3", title:"Payment Received → Order Processed + PO Issued", owner:"Admin + Office Manager · same day", lane:"CUSTOMERS", refs:["receivepay","processso","po"]},
+    {gap:"Vendor lead time", time:"1–2 business days", who:"supplier"},
+    {day:"Day 3–10", title:"Received, Built & Ready", owner:"Warehouse · receive + build 1–5 days", lane:"VENDORS", refs:["recv","billinv","build"]},
+    {gap:"Customer schedules pickup / delivery", time:"varies", who:"waiting on customer"},
+    {day:"Day 4–12", title:"Delivered / Picked Up", owner:"Operations · text/link when ready", lane:"CUSTOMERS", refs:["deliver"]},
     {gap:"Invoice & apply payment", time:"same day", who:"admin"},
-    {day:"Day 7–12", title:"Invoiced & Closed", owner:"Admin · <1 day", lane:"CUSTOMERS", refs:["invoice","deposits"]}
+    {day:"Day 4–12", title:"Invoiced & Closed", owner:"Bookkeeper · same day", lane:"CUSTOMERS", refs:["invoice","deposits"]}
   ]
 };
 const TLM = TIMELINE.steps.filter(s=>s.title);
